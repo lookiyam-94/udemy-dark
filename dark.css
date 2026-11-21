@@ -25,3 +25,11 @@ html.udemy-dark :is(input, textarea, select) {
   color: var(--ud-text) !important;
   border-color: var(--ud-selection) !important;
 }
+
+/* Colors for elements tagged by content.js (graphite palette). */
+html.udemy-dark [data-ud-bg="light"] { background-color: #191919 !important; }
+html.udemy-dark [data-ud-bg="mid"]   { background-color: #1f1f1f !important; }
+html.udemy-dark [data-ud-bg="soft"]  { background-color: #2e2e2e !important; }
+html.udemy-dark [data-ud-fg="main"]  { color: #e4e4e4 !important; }
+html.udemy-dark [data-ud-fg="muted"] { color: #8a8a8a !important; }
+html.udemy-dark [data-ud-bd]         { border-color: #2e2e2e !important; }
