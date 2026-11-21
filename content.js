@@ -42,6 +42,21 @@ function parse(c) {
 const lum = (c) => (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
 const sat = (c) => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b);
 
+// Light but colored backgrounds (promo banners, badges) stay light, so their dark text must stay dark.
+let bgCache = new WeakMap();
+function keepsLightBg(el) {
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    if (bgCache.has(n)) return bgCache.get(n);
+    const bg = parse(getComputedStyle(n).backgroundColor);
+    if (bg && bg.a > 0.4) {
+      const r = sat(bg) >= 40 && lum(bg) > 0.6;
+      bgCache.set(n, r);
+      return r;
+    }
+  }
+  return false;
+}
+
 function recolor(el, fresh) {
   if (SKIP.has(el.tagName.toUpperCase())) return;
   // A class change may have given the element new colors: drop our tags and re-measure.
@@ -57,7 +72,7 @@ function recolor(el, fresh) {
   }
 
   const fg = parse(cs.color);
-  if (fg && sat(fg) < 70) {
+  if (fg && sat(fg) < 70 && !keepsLightBg(el)) {
     const l = lum(fg);
     if (l < 0.4) el.setAttribute("data-ud-fg", "main");
     else if (l < 0.55) el.setAttribute("data-ud-fg", "muted");
@@ -94,6 +109,7 @@ function schedule() {
 }
 function scan(node) {
   if (!enabled || !node || node.nodeType !== 1) return;
+  bgCache = new WeakMap();
   queue.push(node, ...node.querySelectorAll("*"));
   schedule();
 }
