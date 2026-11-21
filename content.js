@@ -13,7 +13,9 @@ function apply(on) {
 // The script only tags elements with data-ud-* attributes. The colors live in
 // dark.css and apply only under html.udemy-dark, so switching off is one class removal.
 const SKIP = new Set(["IMG", "VIDEO", "CANVAS", "PICTURE", "IFRAME", "SCRIPT", "STYLE", "NOSCRIPT", "LINK", "META", "HEAD", "SVG", "PATH", "INPUT", "TEXTAREA", "SELECT"]);
-const ATTRS = ["data-ud-bg", "data-ud-fg", "data-ud-bd"];
+const ATTRS = ["data-ud-bg", "data-ud-fg", "data-ud-bd", "data-ud-grad",
+  "data-ud-before", "data-ud-after", "data-ud-before-grad", "data-ud-after-grad"];
+const GRAD_VARS = ["--ud-grad", "--ud-grad-before", "--ud-grad-after"];
 
 // Normalise any CSS color (rgb, color(srgb ...), oklch, color-mix results...) through a canvas.
 const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
@@ -42,6 +44,29 @@ function parse(c) {
 const lum = (c) => (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
 const sat = (c) => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b);
 
+// Which of the three dark backgrounds (dark.css) a light, neutral color maps to.
+function level(l) { return l > 0.93 ? "light" : l > 0.8 ? "mid" : l > 0.6 ? "soft" : null; }
+const LEVEL_RGB = { light: 25, mid: 31, soft: 46 };
+
+// Light gradients (highlights, edge fades) are drawn with background-image, which the plain
+// background-color rules never see. Rewrite the light, neutral color stops to the dark palette
+// and keep everything else (direction, positions, alpha, saturated colors) as it was.
+const COLOR_TOKEN = /rgba?\([^)]*\)|color\([^)]*\)|ok?lab\([^)]*\)|ok?lch\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g;
+function darkenGradient(image) {
+  if (!image || !image.includes("gradient(") || image.includes("url(")) return null;
+  let changed = false;
+  const out = image.replace(COLOR_TOKEN, (tok) => {
+    const c = parse(tok);
+    if (!c || c.a < 0.02 || sat(c) >= 40) return tok;
+    const lv = level(lum(c));
+    if (!lv) return tok;
+    changed = true;
+    const d = LEVEL_RGB[lv];
+    return `rgba(${d}, ${d}, ${d}, ${c.a})`;
+  });
+  return changed ? out : null;
+}
+
 // Light but colored backgrounds (promo banners, badges) stay light, so their dark text must stay dark.
 let bgCache = new WeakMap();
 function keepsLightBg(el) {
@@ -60,7 +85,10 @@ function keepsLightBg(el) {
 function recolor(el, fresh) {
   if (SKIP.has(el.tagName.toUpperCase())) return;
   // A class change may have given the element new colors: drop our tags and re-measure.
-  if (fresh) for (const a of ATTRS) el.removeAttribute(a);
+  if (fresh) {
+    for (const a of ATTRS) el.removeAttribute(a);
+    for (const v of GRAD_VARS) el.style.removeProperty(v);
+  }
   const cs = getComputedStyle(el);
 
   const bg = parse(cs.backgroundColor);
@@ -69,6 +97,28 @@ function recolor(el, fresh) {
     if (l > 0.93) el.setAttribute("data-ud-bg", "light");
     else if (l > 0.8) el.setAttribute("data-ud-bg", "mid");
     else if (l > 0.6) el.setAttribute("data-ud-bg", "soft");
+  }
+
+  const grad = darkenGradient(cs.backgroundImage);
+  if (grad) {
+    el.setAttribute("data-ud-grad", "1");
+    el.style.setProperty("--ud-grad", grad);
+  }
+
+  // Backgrounds painted by ::before / ::after overlays (selected rows, fades).
+  for (const which of ["before", "after"]) {
+    const ps = getComputedStyle(el, "::" + which);
+    if (ps.content === "none" || ps.content === "normal") continue;
+    const pb = parse(ps.backgroundColor);
+    if (pb && pb.a > 0.4 && sat(pb) < 40) {
+      const lv = level(lum(pb));
+      if (lv) el.setAttribute("data-ud-" + which, lv);
+    }
+    const pg = darkenGradient(ps.backgroundImage);
+    if (pg) {
+      el.setAttribute("data-ud-" + which + "-grad", "1");
+      el.style.setProperty("--ud-grad-" + which, pg);
+    }
   }
 
   const fg = parse(cs.color);
@@ -137,8 +187,34 @@ const observer = new MutationObserver((muts) => {
     else if (m.type === "attributes" && m.target !== root) { fresh.add(m.target); queue.push(m.target); schedule(); }
   }
 });
+// Highlights that come from :hover, :focus or a transition change no class, so the observer never
+// sees them. Re-measure the row under the pointer (or focus) shortly after it changes.
+const stateRoots = new Map();
+let stateTimer;
+function refreshAround(t) {
+  if (!enabled || !(t instanceof Element) || t === document.body || t === root) return;
+  const r = t.closest("li, [role='tab'], [role='option'], [role='listitem'], button, a, [data-purpose]") || t;
+  stateRoots.set(r, t);
+  clearTimeout(stateTimer);
+  stateTimer = setTimeout(() => {
+    for (const [r, t] of stateRoots) {
+      const all = r.querySelectorAll("*");
+      // A huge container: just re-measure the pointer target and a few ancestors.
+      const nodes = all.length > 150 ? [t, t.parentElement, t.parentElement && t.parentElement.parentElement] : [r, ...all];
+      for (const n of nodes) if (n) { fresh.add(n); queue.push(n); }
+    }
+    stateRoots.clear();
+    bgCache = new WeakMap();
+    schedule();
+  }, 80);
+}
+for (const ev of ["mouseover", "mouseout", "focusin", "focusout", "transitionend"]) {
+  document.addEventListener(ev, (e) => refreshAround(e.target), true);
+}
+
 function start() {
-  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+    attributeFilter: ["class", "aria-current", "aria-selected", "aria-checked", "aria-expanded", "data-state"] });
   scan(document.body || root);
   // Catch styles that arrive after load.
   window.addEventListener("load", () => { fullRescanSoon(); setTimeout(fullRescanSoon, 1500); setTimeout(fullRescanSoon, 4000); });

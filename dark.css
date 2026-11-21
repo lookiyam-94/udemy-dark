@@ -33,3 +33,12 @@ html.udemy-dark [data-ud-bg="soft"]  { background-color: #2e2e2e !important; }
 html.udemy-dark [data-ud-fg="main"]  { color: #e4e4e4 !important; }
 html.udemy-dark [data-ud-fg="muted"] { color: #8a8a8a !important; }
 html.udemy-dark [data-ud-bd]         { border-color: #2e2e2e !important; }
+
+/* Gradients (highlights, edge fades) and ::before / ::after overlays that content.js rewrote
+   to the dark palette; --ud-grad* hold the rewritten gradients. */
+html.udemy-dark [data-ud-grad] { background-image: var(--ud-grad) !important; }
+html.udemy-dark [data-ud-before-grad]::before { background-image: var(--ud-grad-before) !important; }
+html.udemy-dark [data-ud-after-grad]::after { background-image: var(--ud-grad-after) !important; }
+html.udemy-dark [data-ud-before="light"]::before, html.udemy-dark [data-ud-after="light"]::after { background-color: #191919 !important; }
+html.udemy-dark [data-ud-before="mid"]::before,   html.udemy-dark [data-ud-after="mid"]::after   { background-color: #1f1f1f !important; }
+html.udemy-dark [data-ud-before="soft"]::before,  html.udemy-dark [data-ud-after="soft"]::after  { background-color: #2e2e2e !important; }
