@@ -8,15 +8,6 @@ function apply(on) {
   if (enabled) scan(document.body || root);
   else restoreAll();
 }
-apply(true);
-// storage.local (Vivaldi has no browser sync) plus a direct message from the popup.
-chrome.storage.local.get({ enabled: true }, (r) => apply(r.enabled));
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.enabled) apply(changes.enabled.newValue);
-});
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === "udemy-dark:set") apply(msg.enabled);
-});
 
 // ---- tagging ---------------------------------------------------------------
 // The script only tags elements with data-ud-* attributes. The colors live in
@@ -117,3 +108,14 @@ function start() {
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
 else start();
+
+// ---- start (after all declarations above; apply() uses them) ----------------
+apply(true);
+// storage.local (Vivaldi has no browser sync) plus a direct message from the popup.
+chrome.storage.local.get({ enabled: true }, (r) => apply(r.enabled));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.enabled) apply(changes.enabled.newValue);
+});
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "udemy-dark:set") apply(msg.enabled);
+});
