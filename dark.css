@@ -15,7 +15,6 @@ html.udemy-dark {
 html.udemy-dark body {
   background: var(--ud-bg) !important;
   color: var(--ud-text);
-  filter: brightness(var(--ud-brightness, 1)) contrast(var(--ud-contrast, 1));
 }
 
 html.udemy-dark ::selection { background: var(--ud-selection); color: #fff; }
@@ -25,9 +24,4 @@ html.udemy-dark :is(input, textarea, select) {
   background-color: var(--ud-bg-light) !important;
   color: var(--ud-text) !important;
   border-color: var(--ud-selection) !important;
-}
-
-/* Media keeps its own colors and ignores the brightness/contrast filter. */
-html.udemy-dark :is(img, video, canvas, picture, iframe) {
-  filter: brightness(calc(1 / var(--ud-brightness, 1))) contrast(calc(1 / var(--ud-contrast, 1)));
 }

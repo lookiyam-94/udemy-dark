@@ -1,24 +1,14 @@
-const DEFAULTS = { enabled: true, brightness: 100, contrast: 100 };
-const $ = (id) => document.getElementById(id);
+const box = document.getElementById("enabled");
 
-function render(s) {
-  $("enabled").checked = s.enabled;
-  $("brightness").value = s.brightness;
-  $("contrast").value = s.contrast;
-  $("bv").textContent = s.brightness + "%";
-  $("cv").textContent = s.contrast + "%";
-}
+chrome.storage.local.get({ enabled: true }, (r) => { box.checked = r.enabled; });
 
-function save() {
-  const s = {
-    enabled: $("enabled").checked,
-    brightness: Number($("brightness").value),
-    contrast: Number($("contrast").value),
-  };
-  chrome.storage.sync.set(s);
-  render(s);
-}
-
-chrome.storage.sync.get(DEFAULTS, render);
-["enabled", "brightness", "contrast"].forEach((id) => $(id).addEventListener("input", save));
-$("reset").addEventListener("click", () => { chrome.storage.sync.set(DEFAULTS); render(DEFAULTS); });
+box.addEventListener("change", () => {
+  const enabled = box.checked;
+  chrome.storage.local.set({ enabled });
+  // Also tell the open Udemy tab(s) directly, in case storage events don't arrive.
+  chrome.tabs.query({ url: "*://*.udemy.com/*" }, (tabs) => {
+    for (const t of tabs) {
+      chrome.tabs.sendMessage(t.id, { type: "udemy-dark:set", enabled }, () => void chrome.runtime.lastError);
+    }
+  });
+});

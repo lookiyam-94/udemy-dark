@@ -1,25 +1,21 @@
-const DEFAULTS = { enabled: true, brightness: 100, contrast: 100 };
 const root = document.documentElement;
 let enabled = true;
 
 // ---- settings -------------------------------------------------------------
-function apply(s) {
-  enabled = !!s.enabled;
+function apply(on) {
+  enabled = !!on;
   root.classList.toggle("udemy-dark", enabled);
-  root.style.setProperty("--ud-brightness", s.brightness / 100);
-  root.style.setProperty("--ud-contrast", s.contrast / 100);
   if (enabled) scan(document.body || root);
   else restoreAll();
 }
-let current = { ...DEFAULTS };
-function update(s) { current = { ...current, ...s }; apply(current); }
-apply(current);
-chrome.storage.sync.get(DEFAULTS, update);
-// Apply popup changes live, straight from the change event.
-chrome.storage.onChanged.addListener((changes) => {
-  const s = {};
-  for (const k in changes) if (k in DEFAULTS) s[k] = changes[k].newValue ?? DEFAULTS[k];
-  update(s);
+apply(true);
+// storage.local (Vivaldi has no browser sync) plus a direct message from the popup.
+chrome.storage.local.get({ enabled: true }, (r) => apply(r.enabled));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.enabled) apply(changes.enabled.newValue);
+});
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "udemy-dark:set") apply(msg.enabled);
 });
 
 // ---- recoloring (graphite palette) ----------------------------------------
