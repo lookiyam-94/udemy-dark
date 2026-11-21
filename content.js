@@ -11,9 +11,16 @@ function apply(s) {
   if (enabled) scan(document.body || root);
   else restoreAll();
 }
-apply(DEFAULTS);
-chrome.storage.sync.get(DEFAULTS, apply);
-chrome.storage.onChanged.addListener(() => chrome.storage.sync.get(DEFAULTS, apply));
+let current = { ...DEFAULTS };
+function update(s) { current = { ...current, ...s }; apply(current); }
+apply(current);
+chrome.storage.sync.get(DEFAULTS, update);
+// Apply popup changes live, straight from the change event.
+chrome.storage.onChanged.addListener((changes) => {
+  const s = {};
+  for (const k in changes) if (k in DEFAULTS) s[k] = changes[k].newValue ?? DEFAULTS[k];
+  update(s);
+});
 
 // ---- recoloring (graphite palette) ----------------------------------------
 const SKIP = new Set(["IMG", "VIDEO", "CANVAS", "PICTURE", "IFRAME", "SCRIPT", "STYLE", "NOSCRIPT", "LINK", "META", "HEAD", "SVG", "PATH", "INPUT", "TEXTAREA", "SELECT"]);
@@ -49,9 +56,9 @@ function recolor(el) {
   }
 
   const fg = parse(cs.color);
-  if (fg && sat(fg) < 40) {
+  if (fg && sat(fg) < 70) {
     const l = lum(fg);
-    if (l < 0.35) set(el, "color", TEXT.main);
+    if (l < 0.4) set(el, "color", TEXT.main);
     else if (l < 0.55) set(el, "color", TEXT.muted);
   }
 
@@ -97,16 +104,30 @@ function restoreAll() {
   touched.clear();
 }
 
+let rescanTimer;
+function fullRescanSoon() {
+  clearTimeout(rescanTimer);
+  rescanTimer = setTimeout(() => scan(document.body || root), 150);
+}
+
 const observer = new MutationObserver((muts) => {
   if (!enabled) return;
   for (const m of muts) {
-    if (m.type === "childList") m.addedNodes.forEach(scan);
+    if (m.type === "childList") {
+      m.addedNodes.forEach((n) => {
+        // Late-loaded stylesheets can change colors anywhere: rescan everything.
+        if (n.nodeName === "STYLE" || n.nodeName === "LINK") fullRescanSoon();
+        else scan(n);
+      });
+    }
     else if (m.type === "attributes") { queue.push(m.target); schedule(); }
   }
 });
 function start() {
   observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   scan(document.body || root);
+  // Catch styles that arrive after load.
+  window.addEventListener("load", () => { fullRescanSoon(); setTimeout(fullRescanSoon, 1500); setTimeout(fullRescanSoon, 4000); });
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
 else start();
