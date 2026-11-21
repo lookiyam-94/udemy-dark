@@ -15,11 +15,29 @@ function apply(on) {
 const SKIP = new Set(["IMG", "VIDEO", "CANVAS", "PICTURE", "IFRAME", "SCRIPT", "STYLE", "NOSCRIPT", "LINK", "META", "HEAD", "SVG", "PATH", "INPUT", "TEXTAREA", "SELECT"]);
 const ATTRS = ["data-ud-bg", "data-ud-fg", "data-ud-bd"];
 
+// Normalise any CSS color (rgb, color(srgb ...), oklch, color-mix results...) through a canvas.
+const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+const cache = new Map();
 function parse(c) {
-  const m = c.match(/rgba?\(([^)]+)\)/);
-  if (!m) return null;
-  const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
-  return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+  if (!c || c === "transparent") return null;
+  if (cache.has(c)) return cache.get(c);
+  let out = null;
+  const m = c.match(/^rgba?\(([^)]+)\)$/);
+  if (m) {
+    const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+    out = { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+  } else {
+    try {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = "#000";
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, 1, 1);
+      const d = ctx.getImageData(0, 0, 1, 1).data;
+      out = { r: d[0], g: d[1], b: d[2], a: d[3] / 255 };
+    } catch (e) { out = null; }
+  }
+  cache.set(c, out);
+  return out;
 }
 const lum = (c) => (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
 const sat = (c) => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b);
@@ -62,7 +80,10 @@ function flush() {
   const start = performance.now();
   while (queue.length && performance.now() - start < 12) {
     const el = queue.pop();
-    if (el.isConnected) { recolor(el, fresh.has(el)); fresh.delete(el); }
+    if (el.isConnected) {
+      try { recolor(el, fresh.has(el)); } catch (e) { /* one bad element must not stall the queue */ }
+      fresh.delete(el);
+    }
   }
   if (queue.length) schedule();
 }
