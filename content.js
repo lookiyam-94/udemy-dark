@@ -148,11 +148,5 @@ else start();
 
 // ---- start (after all declarations above; apply() uses them) ----------------
 apply(true);
-// storage.local (Vivaldi has no browser sync) plus a direct message from the popup.
+// The toolbar icon (background.js) flips this setting and reloads the page.
 chrome.storage.local.get({ enabled: true }, (r) => apply(r.enabled));
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.enabled) apply(changes.enabled.newValue);
-});
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === "udemy-dark:set") apply(msg.enabled);
-});

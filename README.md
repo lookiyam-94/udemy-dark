@@ -9,7 +9,7 @@ A Manifest V3 extension that gives Udemy a dark theme, including the course play
 
 ## Features
 - Dark theme for the storefront and the course player (sidebar, Q&A, notes)
-- Toolbar popup with an on/off switch (saved in `chrome.storage.local`)
+- Click the toolbar icon to switch the theme on or off (the page reloads; a grey OFF badge shows when disabled)
 - Only runs on `udemy.com`
 
 ## Notes
