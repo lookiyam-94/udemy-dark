@@ -1,0 +1,65 @@
+/* All rules are scoped to html.udemy-dark so the toggle fully disables the theme. */
+html.udemy-dark {
+  --ud-bg: #121214;
+  --ud-surface: #1c1d1f;
+  --ud-surface-2: #26272b;
+  --ud-border: #3a3b40;
+  --ud-text: #e8e8ea;
+  --ud-muted: #a1a2a8;
+  --ud-link: #b69cff;
+  color-scheme: dark;
+  background: var(--ud-bg) !important;
+}
+
+/* Brightness/contrast apply to the page; media is re-compensated below. */
+html.udemy-dark body {
+  background: var(--ud-bg) !important;
+  color: var(--ud-text) !important;
+  filter: brightness(var(--ud-brightness, 1)) contrast(var(--ud-contrast, 1));
+}
+
+html.udemy-dark :is(header, nav, footer, main, section, aside, article, form, dialog,
+  [role="dialog"], [role="menu"], [role="tabpanel"], [class*="container"],
+  [class*="card"], [class*="popover"], [class*="panel"], [class*="sidebar"],
+  [class*="curriculum"], [data-purpose*="sidebar"], [data-purpose*="panel"]) {
+  background-color: var(--ud-surface) !important;
+  color: var(--ud-text) !important;
+  border-color: var(--ud-border) !important;
+}
+
+html.udemy-dark :is(h1, h2, h3, h4, h5, h6, p, span, li, label, td, th, div) {
+  color: var(--ud-text);
+  border-color: var(--ud-border);
+}
+
+html.udemy-dark :is([class*="muted"], [class*="secondary"], small) {
+  color: var(--ud-muted) !important;
+}
+
+html.udemy-dark a { color: var(--ud-link); }
+
+html.udemy-dark :is(input, textarea, select) {
+  background: var(--ud-surface-2) !important;
+  color: var(--ud-text) !important;
+  border-color: var(--ud-border) !important;
+}
+
+/* White utility backgrounds Udemy uses on many wrappers. */
+html.udemy-dark :is([style*="background-color: rgb(255, 255, 255)"],
+  [style*="background: rgb(255, 255, 255)"], [style*="background-color: #fff"]) {
+  background-color: var(--ud-surface) !important;
+}
+
+/* Course player: sidebar, tabs, Q&A, notes. Video chrome is left alone. */
+html.udemy-dark :is([data-purpose="sidebar"], [data-purpose="curriculum-section-container"],
+  [data-purpose="course-content-sidebar"], [data-purpose="tabs-container"],
+  [data-purpose="qa-container"], [data-purpose="notes-container"]) {
+  background: var(--ud-surface) !important;
+  color: var(--ud-text) !important;
+}
+
+/* Do not alter media, but cancel the body filter's effect on it. */
+html.udemy-dark :is(img, video, canvas, picture, iframe, svg image) {
+  background-color: transparent !important;
+  filter: brightness(calc(1 / var(--ud-brightness, 1))) contrast(calc(1 / var(--ud-contrast, 1)));
+}
